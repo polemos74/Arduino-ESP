@@ -1,5 +1,4 @@
 // MQTT test client
-// deneme 3
 
 #include "TM1637Header.h"
 #include "CommonEssentials.h"
