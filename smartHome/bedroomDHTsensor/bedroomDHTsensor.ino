@@ -1,150 +1,97 @@
-#include <ESP8266WiFi.h>
-#include <Ticker.h>
-#include <AsyncMqttClient.h>
+// Bedroom DHT sensor with display client
+
 #include <TM1637Header.h>
+#include "CommonEssentials.h"
 #include <DHTheader.h>
-#include "MQTTTimeSync.h"
 
 #define DHT_PIN D4     // what pin we're connected to
-//unsigned long previousMillis;
+#define SWITCH_PIN D5              // Onboard Transistor Switch
+#define PUSH_BUTTON D6
+#define LED_ON LOW
+#define LED_OFF HIGH
 
-#include "wifi_credentials.h"
-
-#define MQTT_HOST IPAddress(192, 168, 0, 100)
-#define MQTT_PORT 1883
-
-// Wemos D1 mini pin numbers
-//#define LED_BUILTIN D4
-//#define SENSOR01_OUTPUT_PIN  D7  // DHT sensor
-
-
-AsyncMqttClient mqttClient;
-Ticker mqttReconnectTimer;
-
-WiFiEventHandler wifiConnectHandler;
-WiFiEventHandler wifiDisconnectHandler;
-Ticker wifiReconnectTimer;
-
-char valueStr01[5];
-char valueStr02[5];
 char clientName[] = {"bedroomDHTSensor"};
 
-unsigned long previousMillis;
+Ticker displayTimer;
+Ticker DHTReadTimer;
 
-void connectToWifi() {
-    // Connect to WiFi access point.
-  //Serial.println();
-  //Serial.print("Connecting to ");
-  //Serial.println(WLAN_SSID);
-  WiFi.hostname(clientName);
-  WiFi.mode(WIFI_STA);
-  WiFi.begin(WLAN_SSID, WLAN_PASS);
-  while (WiFi.status() != WL_CONNECTED) {
-    digitalWrite(LED_BUILTIN, LOW);   // Turn the LED on (Note that LOW is the voltage level
-                                    // but actually the LED is on; this is because 
-                                    // it is active low on the ESP-01)
-    yield();
-    delay(50);                      // Wait for a second
-    digitalWrite(LED_BUILTIN, HIGH);  // Turn the LED off by making the voltage HIGH
-    for (int a = 1 ; a < 10 ; a++){
-    yield();
-    delay(50);
+bool displayFlag  = false;
+bool DHTReadFlag = false;
+
+void initialConnectionForOTA(){
+  blinkerTimer.attach(0.15, blinker);
+  display.print("OTA ");
+  connectToWifi();
+  OTA_setup();
+
+  uint16_t time_elapsed = 0;
+  while(time_elapsed < 60000) {
+    ArduinoOTA.handle();
+    time_elapsed = millis();
+    delay(10);
     }
-
-  }
-  //Serial.println();
-
-  //Serial.println("WiFi connected");
-  //Serial.println("IP address: "); //Serial.println(WiFi.localIP());
+  ESP.restart();
 }
 
 void onWifiConnect(const WiFiEventStationModeGotIP& event) {
-  //Serial.println("Connected to Wi-Fi.");
+  blinkerTimer.detach();
+  digitalWrite(LED_BUILTIN, LED_OFF);
   connectToMqtt();
 }
 
 void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
-  //Serial.println("Disconnected from Wi-Fi.");
+  blinkerTimer.attach(0.5, blinker);
   mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
   wifiReconnectTimer.once(2, connectToWifi);
 }
 
-void connectToMqtt() {
-  //Serial.println("Connecting to MQTT...");
-  mqttClient.connect();
-}
-
 void onMqttConnect(bool sessionPresent) {
-  //Serial.println("Connected to MQTT.");
-  //Serial.print("Session present: ");
-  //Serial.println(sessionPresent);
   uint16_t packetIdSub = mqttClient.subscribe("common/timestamp", 1);
-/*  uint16_t packetIdSub = mqttClient.subscribe("son/humidifier/command", 1);
-  //Serial.print("Subscribing at QoS 1, packetId: ");
-  //Serial.println(packetIdSub);
-  uint16_t packetIdSub = mqttClient.subscribe("living/pir/command", 1);
-  //Serial.print("Subscribing at QoS 1, packetId: ");
-  //Serial.println(packetIdSub);
-    uint16_t packetIdPub1 = mqttClient.publish("test/lol", 1, true, "test 2");
-  //Serial.print("Publishing at QoS 1, packetId: ");
-  //Serial.println(packetIdPub1);
-  uint16_t packetIdPub2 = mqttClient.publish("test/lol", 2, true, "test 3");
-  //Serial.print("Publishing at QoS 2, packetId: ");
-  //Serial.println(packetIdPub2);*/
-}
-
-void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
-  //Serial.println("Disconnected from MQTT.");
-
-  if (WiFi.isConnected()) {
-    mqttReconnectTimer.once(2, connectToMqtt);
-  }
 }
 
 void onMqttSubscribe(uint16_t packetId, uint8_t qos) {
-  //Serial.println("Subscribe acknowledged.");
-  //Serial.print("  packetId: ");
-  //Serial.println(packetId);
-  //Serial.print("  qos: ");
-  //Serial.println(qos);
 }
 
 void onMqttUnsubscribe(uint16_t packetId) {
-  //Serial.println("Unsubscribe acknowledged.");
-  //Serial.print("  packetId: ");
-  //Serial.println(packetId);
 }
 
 void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total) {
-//Serial.println(topic);
   if (String(topic) == "common/timestamp") {
-        if (len < 13){
-      return;
-      }
-
-//    Serial.println();      
-//    Serial.println(payload);      
+    if (len < 10){
+    return;
+    }
+    char timestampBuffer[10];   // Temporary buffer
     strncpy (timestampBuffer,payload,10);
-//    Serial.println(timestampBuffer);      
     timestamp = atoi(timestampBuffer);
-//    Serial.println(timestamp);
-    timeIsSet = true;
-    } 
+    timestampReceived = true;
+  }
 }
 
 void onMqttPublish(uint16_t packetId) {
-  //Serial.println("Publish acknowledged.");
-  //Serial.print("  packetId: ");
-  //Serial.println(packetId);
 }
 
 void setup() {
-  pinMode(LED_BUILTIN,OUTPUT);
-  digitalWrite(LED_BUILTIN,HIGH);
-  //Serial.begin(115200);
   display.begin();            // initializes the display
   display.setBacklight(100);  // set the brightness to 100 %
   display.print("INIT");      // display INIT on the display
+
+  pinMode(LED_BUILTIN,OUTPUT);
+  digitalWrite(LED_BUILTIN,LED_OFF);
+  pinMode(SWITCH_PIN,OUTPUT);
+  digitalWrite(SWITCH_PIN,LOW);
+  pinMode(PUSH_BUTTON,INPUT_PULLUP);
+
+  mqttPrefix = "bedroom/sensor";
+
+  WiFi.hostname(clientName);
+  WiFi.mode(WIFI_STA);
+
+  int buttonCheck = digitalRead(PUSH_BUTTON);
+  if(buttonCheck == LOW){
+    initialConnectionForOTA();
+  }
+
+  attachInterrupt(digitalPinToInterrupt(PUSH_BUTTON),buttonPressed,FALLING);
 
   wifiConnectHandler = WiFi.onStationModeGotIP(onWifiConnect);
   wifiDisconnectHandler = WiFi.onStationModeDisconnected(onWifiDisconnect);
@@ -157,94 +104,34 @@ void setup() {
   mqttClient.onMessage(onMqttMessage);
   mqttClient.onPublish(onMqttPublish);
   mqttClient.setServer(MQTT_HOST, MQTT_PORT);
-  mqttClient.setKeepAlive(60).setCleanSession(false).setWill("bedroom/sensor/lastwill", 2, true, "disconnected");
+  mqttClient.setKeepAlive(keepAliveTimeout).setCleanSession(false).setWill("clients/bedroom/sensor/lastwill", 2, true, "disconnected");
+
+  blinkerTimer.attach(0.5, blinker);
 
   connectToWifi();
 
-  for (int a = 1 ; a < 10 ; a++){
+  while (!timestampReceived) {
     yield();
-    delay(50);
-    }
-
-  while (!timeIsSet) {
-        yield();
-    //Serial.println("no packet yet");
   }
+  timeSystemInit();
 
-  setTheClock();
-  extractUnixTime();
-  lastHourCheck = clockHour;
-
-//  WiFi.printDiag(//Serial);
-
+  displayTimer.attach(2, displayTimerCallback);
+  DHTReadTimer.attach(10,DHTReadTimerCallback);
 }
 
 void loop() {
-
-  unsigned long currentMillis = millis();
-  epoch = epoch + (int((currentMillis-previousMillis)/1000));
-
-  if (currentMillis - previousMillis >= 1000){
-  previousMillis = currentMillis;
-  extractUnixTime();
-//      //Serial.println(lastHourCheck);
-//      //Serial.println(clockHour);
-  if (lastHourCheck != clockHour){
-      setTheClock();
-      extractUnixTime();
-      lastHourCheck = clockHour;
-      }
-    if (clockSecond%5 == 0 ){
-      readDHT();
-      String hi01 = (String)temperature;
-      String hi02 = (String)humidity;
-      hi01.toCharArray(valueStr01, 5);
-      hi02.toCharArray(valueStr02, 5);
-    uint16_t packetIdPub1 = mqttClient.publish("bedroom/sensor/temperature", 0, true, valueStr01);
-    uint16_t packetIdPub2 = mqttClient.publish("bedroom/sensor/humidity", 0, true, valueStr02);
-
-      }
-    if (clockSecond%2 == 0 ){
-      switch (mode) {
-        case  0:
-        display.clear();
-        display.printTime(clockHour,clockMinute,false);
-        break;
-        
-        case  1:
-        numberToDisplay = int(temperature);
-        display.clear();
-        display.print(" "+String(numberToDisplay));
-        display.printRaw(B01100011,3);  //degree sign
-        break;
-        
-        case  2:
-        numberToDisplay = int(humidity);
-        display.clear();
-        display.print("H "+String(numberToDisplay));
-
-  // ping the server to keep the mqtt connection alive
-  // NOT required if you are publishing once every KEEPALIVE seconds
-  /*
-  if(! mqtt.ping()) {
-    mqtt.disconnect();
-  }
-  */
-        }
-      mode++;
-      if (mode > 2){
-        mode = 0;
-        }
-
-      }
-    }
+  checkButton();
+  checkClockSync();
+  checkDHTReadFlag();
+  checkDisplayFlag();
+  checkPresenceReportFlag();
 }
 
 void readDHT(){
   // READ DATA
     //Serial.print("DHT22, \t");
 //    digitalWrite(LED_BUILTIN, LOW);   // Turn the LED on (Note that LOW is the voltage level
-                                    // but actually the LED is on; this is because 
+                                    // but actually the LED is on; this is because
                                     // it is active low on the ESP-01)
 //    delay(50);                      // Wait for a second
 //    digitalWrite(LED_BUILTIN, HIGH);  // Turn the LED off by making the voltage HIGH
@@ -305,19 +192,106 @@ void readDHT(){
     }
   }
 
-void setTheClock(){
-    epoch = timestamp;
-}
-
-
-void extractUnixTime(){
-  now = epoch;
-      clockSecond = now.second();
-      clockMinute = now.minute();
-      clockHour = now.hour()+TIMEZONE_OFFSET;
-      if (clockHour > 23){
-      clockHour = clockHour - 24;
-      }
-  
+  void buttonPressed(){
+    buttonFlag = true;
   }
 
+  void checkButton(){
+    if (buttonFlag == true) {
+      //Serial.println("Handling interrupt");
+      buttonVal = digitalRead(PUSH_BUTTON);
+      // Test for button pressed and store the down time
+      if (buttonVal == LOW && buttonLast == HIGH && (millis() - btnUpTime) > long(debounce))  {
+        btnDnTime = millis();
+        //Serial.println("Down "+String(btnDnTime));
+      }
+      // Test for button release and store the up time
+      if (buttonVal == HIGH && buttonLast == LOW && (millis() - btnDnTime) > long(debounce))  {
+        if (ignoreUp == false) event1();
+        else ignoreUp = false;
+        btnUpTime = millis();
+        //Serial.println("Up "+String(btnUpTime));
+        buttonFlag = false;
+      }
+      // Test for button held down for longer than the hold time
+      if (buttonVal == LOW && (millis() - btnDnTime) > long(holdTime))  {
+        event2();
+        ignoreUp = true;
+        btnDnTime = millis();
+      //Serial.println("Down "+String(btnDnTime));
+      }
+      buttonLast = buttonVal;
+    }
+  }
+
+  void event1() {
+    digitalWrite(SWITCH_PIN,!digitalRead(SWITCH_PIN));
+    if (digitalRead(SWITCH_PIN) == HIGH)  {
+      mqttClient.publish("bedroom/sensor/pushButton", 1, true, "on");
+      //Serial.println("Publishing at QoS 1");
+      }
+    else {
+      mqttClient.publish("bedroom/sensor/pushButton", 1, true, "off");
+      //Serial.println("Publishing at QoS 1");
+    }
+  }
+
+  void event2()  {
+    mqttClient.publish("bedroom/sensor/pushButton", 1, true, "auto");
+    for (int a = 1 ; a < 7 ; a++) {
+      digitalWrite(SWITCH_PIN,!digitalRead(SWITCH_PIN));
+      delay(100);
+    }
+  }
+
+  void displayTimerCallback() {
+    displayFlag = true;
+  }
+
+  void checkDisplayFlag() {
+    if (displayFlag == true) {
+        switch (displayData) {
+          case  0:
+          display.clear();
+          display.printTime(hour(),minute(),false);
+          break;
+
+          case  1:
+          numberToDisplay = int(temperature);
+          display.clear();
+          display.print(" "+String(numberToDisplay));
+          display.printRaw(B01100011,3);  //degree sign
+          break;
+
+          case  2:
+          numberToDisplay = int(humidity);
+          display.clear();
+          display.print("H "+String(numberToDisplay));
+
+        }
+        displayData++;
+        if (displayData > 2){
+          displayData = 0;
+        }
+        displayFlag = false;
+    }
+  }
+
+  void DHTReadTimerCallback() {
+    DHTReadFlag = true;
+    }
+
+  void checkDHTReadFlag() {
+    if ( DHTReadFlag == true ) {
+        readDHT();
+        char valueStr01[5];
+        char valueStr02[5];
+        String hi01 = (String)temperature;
+        String hi02 = (String)humidity;
+        hi01.toCharArray(valueStr01, 5);
+        hi02.toCharArray(valueStr02, 5);
+        uint16_t packetIdPub1 = mqttClient.publish("bedroom/sensor/temperature", 0, true, valueStr01);
+        uint16_t packetIdPub2 = mqttClient.publish("bedroom/sensor/humidity", 0, true, valueStr02);
+        DHTReadFlag = false;
+    }
+  }
