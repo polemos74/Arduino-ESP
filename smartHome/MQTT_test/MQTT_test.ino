@@ -85,7 +85,7 @@ void setup() {
   mqttPrefix = "mqttTest";
 
   WiFi.hostname(clientName);
-  WiFi.mode(WIFI_STA);
+  WiFi.mode(WIFI_AP_STA);
 
   int buttonCheck = digitalRead(PUSH_BUTTON);
   if (buttonCheck == LOW) {

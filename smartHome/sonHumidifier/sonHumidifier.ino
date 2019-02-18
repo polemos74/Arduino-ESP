@@ -1,166 +1,100 @@
-#include <ESP8266WiFi.h>
-#include <Ticker.h>
-#include <AsyncMqttClient.h>
+// Humidifer controller client
 
-unsigned long previousMillis;
-
-#include "wifi_credentials.h"
-
-#define MQTT_HOST IPAddress(192, 168, 0, 100)
-#define MQTT_PORT 1883
+#include "CommonEssentials.h"
 
 // SONOFF pin numbers
-#define STATUS_LED_PIN 13
+#define LED_BUILTIN 13
 #define RELAY_PIN 12
 #define INDICATOR_LED_PIN 14
 #define PUSH_BUTTON  0            // Onboard push button
+#define LED_ON LOW
+#define LED_OFF HIGH
 
-volatile bool buttonFlag = false ;
+char clientName[] = {"mobileHumidifier"};
 
-AsyncMqttClient mqttClient;
-Ticker mqttReconnectTimer;
+void initialConnectionForOTA(){
+  blinkerTimer.attach(0.15, blinker);
+  connectToWifi();
+  OTA_setup();
 
-WiFiEventHandler wifiConnectHandler;
-WiFiEventHandler wifiDisconnectHandler;
-Ticker wifiReconnectTimer;
-
-char clientName[] = {"sonHumidifier"};
-
-void connectToWifi() {
-    // Connect to WiFi access point.
-  ////Serial.println(); ////Serial.println();
-  ////Serial.print("Connecting to ");
-  ////Serial.println(WLAN_SSID);
-
-  WiFi.hostname(clientName);
-  WiFi.begin(WLAN_SSID, WLAN_PASS);
-  WiFi.mode(WIFI_STA);
-  while (WiFi.status() != WL_CONNECTED) {
-    digitalWrite(STATUS_LED_PIN, LOW);   // Turn the LED on (Note that LOW is the voltage level
-                                    // but actually the LED is on; this is because 
-                                    // it is active low on the ESP-01)
-    yield();
-    delay(50);                      // Wait for a second
-    digitalWrite(STATUS_LED_PIN, HIGH);  // Turn the LED off by making the voltage HIGH
-    for (int a = 1 ; a < 10 ; a++){
-    yield();
-    delay(50);
+  uint16_t time_elapsed = 0;
+  while(time_elapsed < 60000) {
+    ArduinoOTA.handle();
+    time_elapsed = millis();
+    delay(10);
     }
-
-  }
-  ////Serial.println();
-  digitalWrite(STATUS_LED_PIN, LOW);
-  //Serial.println("WiFi connected");
-  //Serial.println("IP address: "); //Serial.println(WiFi.localIP());
+  ESP.restart();
 }
 
 void onWifiConnect(const WiFiEventStationModeGotIP& event) {
-  //Serial.println("Connected to Wi-Fi.");
+  blinkerTimer.detach();
+  digitalWrite(LED_BUILTIN, LED_ON);
   connectToMqtt();
 }
 
 void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
-  //Serial.println("Disconnected from Wi-Fi.");
+ blinkerTimer.attach(0.5, blinker);
   mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
   wifiReconnectTimer.once(2, connectToWifi);
 }
 
-void connectToMqtt() {
-  //Serial.println("Connecting to MQTT...");
-  mqttClient.connect();
-}
-
 void onMqttConnect(bool sessionPresent) {
-  //Serial.println("Connected to MQTT.");
-  //Serial.print("Session present: ");
-  //Serial.println(sessionPresent);
-  uint16_t packetIdSub = mqttClient.subscribe("son/humidifier/command", 1);
-  //Serial.print("Subscribing at QoS 1, packetId: ");
-  //Serial.println(packetIdSub);
-}
-
-void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
-  //Serial.println("Disconnected from MQTT.");
-
-  if (WiFi.isConnected()) {
-    mqttReconnectTimer.once(2, connectToMqtt);
-  }
+  uint16_t packetIdSub1 = mqttClient.subscribe("mobile/humidifier/command", 1);
+  uint16_t packetIdSub2 = mqttClient.subscribe("mobile/humidifier/reset", 0);
 }
 
 void onMqttSubscribe(uint16_t packetId, uint8_t qos) {
-  //Serial.println("Subscribe acknowledged.");
-  //Serial.print("  packetId: ");
-  //Serial.println(packetId);
-  //Serial.print("  qos: ");
-  //Serial.println(qos);
 }
 
 void onMqttUnsubscribe(uint16_t packetId) {
-  //Serial.println("Unsubscribe acknowledged.");
-  //Serial.print("  packetId: ");
-  //Serial.println(packetId);
 }
 
 void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total) {
 //Serial.println(topic);
-if (String(topic) == "son/humidifier/command") {
+	if (String(topic) == "mobile/humidifier/command") {
     if (payload[1] == 'n')  {
     digitalWrite(RELAY_PIN,HIGH);
-    digitalWrite(STATUS_LED_PIN,HIGH);
-    digitalWrite(INDICATOR_LED_PIN,LOW);    
-mqttClient.publish("son/humidifier/feedback", 1, true, "true");
-  //Serial.println("Publishing at QoS 2");      
-      } 
+    digitalWrite(LED_BUILTIN,LED_OFF);
+    digitalWrite(INDICATOR_LED_PIN,LED_ON);
+	 mqttClient.publish("mobile/humidifier/feedback", 1, true, "true");
+    }
     if (payload[1] == 'f'){
     digitalWrite(RELAY_PIN,LOW);
-    digitalWrite(STATUS_LED_PIN,LOW);
-    digitalWrite(INDICATOR_LED_PIN,HIGH);    
-mqttClient.publish("son/humidifier/feedback", 1, true, "false");
-  //Serial.println("Publishing at QoS 2");      
-
+    digitalWrite(LED_BUILTIN,LED_ON);
+    digitalWrite(INDICATOR_LED_PIN,LED_OFF);
+	 mqttClient.publish("mobile/humidifier/feedback", 1, true, "false");
      }
-}
-  //Serial.println("Publish received.");
-  //Serial.print("  topic: ");
-  //Serial.println(topic);
-  //Serial.print("  payload: ");
-  //Serial.println(payload);  
-  //Serial.print("  qos: ");
-  //Serial.println(properties.qos);
-  //Serial.print("  dup: ");
-  //Serial.println(properties.dup);
-  //Serial.print("  retain: ");
-  //Serial.println(properties.retain);
-  //Serial.print("  len: ");
-  //Serial.println(len);
-  //Serial.print("  index: ");
-  //Serial.println(index);
-  //Serial.print("  total: ");
-  //Serial.println(total);
-  //Serial.println();    
+     if (String(topic) == "mobile/humidifier/reset") {
+       ESP.restart();
+     }
+	}
 }
 
 void onMqttPublish(uint16_t packetId) {
-  //Serial.println("Publish acknowledged.");
-  //Serial.print("  packetId: ");
-  //Serial.println(packetId);
 }
 
 void setup() {
-  pinMode(STATUS_LED_PIN,OUTPUT);
-  digitalWrite(STATUS_LED_PIN,HIGH);
+  pinMode(LED_BUILTIN,OUTPUT);
+  digitalWrite(LED_BUILTIN,LED_OFF);
   pinMode(INDICATOR_LED_PIN,OUTPUT);
-  digitalWrite(INDICATOR_LED_PIN,HIGH);
+  digitalWrite(INDICATOR_LED_PIN,LED_OFF);
   pinMode(RELAY_PIN,OUTPUT);
   digitalWrite(RELAY_PIN,LOW);
   pinMode (PUSH_BUTTON,INPUT_PULLUP);
-  
+
   attachInterrupt(PUSH_BUTTON,buttonPressed,FALLING);
 
+  mqttPrefix = "mobile/humidifier";
 
-  //Serial.begin(115200);
-  //Serial.println();
-  //Serial.println();
+  WiFi.hostname(clientName);
+  WiFi.mode(WIFI_STA);
+
+  int buttonCheck = digitalRead(PUSH_BUTTON);
+  if (buttonCheck == LOW) {
+    initialConnectionForOTA();
+  }
+
+  attachInterrupt(PUSH_BUTTON,buttonPressed,FALLING);
 
   wifiConnectHandler = WiFi.onStationModeGotIP(onWifiConnect);
   wifiDisconnectHandler = WiFi.onStationModeDisconnected(onWifiDisconnect);
@@ -173,44 +107,70 @@ void setup() {
   mqttClient.onMessage(onMqttMessage);
   mqttClient.onPublish(onMqttPublish);
   mqttClient.setServer(MQTT_HOST, MQTT_PORT);
-  mqttClient.setKeepAlive(5).setCleanSession(false).setWill("son/humidifier/lastwill", 2, true, "disconnected");
+  mqttClient.setKeepAlive(keepAliveTimeout).setCleanSession(false).setWill("clients/mobile/humidifier/lastwill", 2, true, "disconnected");
+
+  blinkerTimer.attach(0.5, blinker);
 
   connectToWifi();
-  
-  for (int a = 1 ; a < 10 ; a++){
-    yield();
-    delay(50);
-    }
-
-//  WiFi.printDiag(//Serial);
 
 }
 
 void loop() {
-  unsigned long currentMillis = millis();
-  if (currentMillis - previousMillis > 1000){
-  previousMillis = currentMillis;
   checkButton();
+  checkPresenceReportFlag();
 }
-}
-void checkButton(){
-  if (buttonFlag == true){
-    ////Serial.println("Button pressed!");
-    bool pinStatus = digitalRead(RELAY_PIN);
-    ////Serial.println(pinStatus);
-    if (pinStatus == true){
-      uint16_t packetIdPub1 = mqttClient.publish("son/humidifier/relay", 1, true, "0");
-      }
-    else {
-      uint16_t packetIdPub1 = mqttClient.publish("son/humidifier/relay", 1, true, "1");
-      }
-    pinStatus = !pinStatus;
-    digitalWrite(RELAY_PIN, pinStatus);
-    //digitalWrite(ONBOARD_LED, !pinStatus);
-    buttonFlag = false;
-    }
-}
-void buttonPressed(){
+
+void buttonPressed()  {
   buttonFlag = true;
 }
 
+void checkButton()  {
+  if (buttonFlag == true) {
+    //Serial.println("Button pressed!");
+    buttonVal = digitalRead(PUSH_BUTTON);
+    // Test for button pressed and store the down time
+    if (buttonVal == LOW && buttonLast == HIGH && (millis() - btnUpTime) > long(debounce))  {
+      btnDnTime = millis();
+      //Serial.println("Down "+String(btnDnTime));
+    }
+    // Test for button release and store the up time
+    if (buttonVal == HIGH && buttonLast == LOW && (millis() - btnDnTime) > long(debounce))  {
+      if (ignoreUp == false) buttonEvent1();
+      else ignoreUp = false;
+      btnUpTime = millis();
+      //Serial.println("Up "+String(btnUpTime));
+      buttonFlag = false;
+    }
+    // Test for button held down for longer than the hold time
+    if (buttonVal == LOW && (millis() - btnDnTime) > long(holdTime))  {
+      buttonEvent2();
+      ignoreUp = true;
+      btnDnTime = millis();
+      //Serial.println("Down "+String(btnDnTime));
+    }
+    buttonLast = buttonVal;
+  }
+}
+
+void buttonEvent1() {
+    digitalWrite(RELAY_PIN, !digitalRead(RELAY_PIN));
+
+    bool pinStatus = digitalRead(RELAY_PIN) ;
+    if (pinStatus == HIGH){
+      digitalWrite(LED_BUILTIN,LED_OFF);
+      digitalWrite(INDICATOR_LED_PIN,LED_ON);
+      mqttClient.publish("mobile/humidifier/pushButton", 1, true, "on");
+    }
+    else {
+      digitalWrite(LED_BUILTIN,LED_ON);
+      digitalWrite(INDICATOR_LED_PIN,LED_OFF);
+      mqttClient.publish("mobile/humidifier/pushButton", 1, true, "off");
+    }
+}
+
+void buttonEvent2()  {
+  blinkerTimer.attach(0.15, blinker);
+  delay(3000);
+  blinkerTimer.detach();
+  mqttClient.publish("mobile/humidifier/pushButton", 1, true, "switch");
+}

@@ -30,7 +30,7 @@ boolean timestampReceived = false;  // Receive flag
 AsyncMqttClient mqttClient;
 Ticker mqttReconnectTimer;
 const byte presenceReportInterval = 15;
-const byte keepAliveTimeout = 60;
+const byte keepAliveTimeout = 15;
 
 bool presenceReportTimerFlag = false;
 Ticker presenceReportTimer;
