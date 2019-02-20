@@ -32,19 +32,23 @@ void initialConnectionForOTA() {
 }
 
 void onWifiConnect(const WiFiEventStationModeGotIP& event) {
+  Serial.println("WiFi Connected");
   display.print("WL C");
   blinkerTimer.detach();
   digitalWrite(LED_BUILTIN, LED_OFF);
   connectToMqtt();
 }
 void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
+  Serial.println("WiFi Disconnected");
   display.print("WL D");
   blinkerTimer.attach(0.5, blinker);
+  mqttClient.disconnect();
   mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
   wifiReconnectTimer.once(2, connectToWifi);
 }
 
 void onMqttConnect(bool sessionPresent) {
+  Serial.println("MQTT Connected");
   display.print("MQ C");
   uint16_t packetIdSub = mqttClient.subscribe("common/timestamp", 1);
   presenceReportTimer.attach(presenceReportInterval, presenceReportTimerCallback);
@@ -72,8 +76,7 @@ void onMqttPublish(uint16_t packetId) {
 }
 
 void setup() {
-
-  //  Serial.begin(115200);
+  Serial.begin(115200);
   display.begin();            // initializes the display
   display.setBacklight(100);  // set the brightness to 100 %
   display.print("INIT");      // display INIT on the display
@@ -83,9 +86,9 @@ void setup() {
   pinMode(PUSH_BUTTON, INPUT_PULLUP);
 
   mqttPrefix = "mqttTest";
-
+  WiFi.disconnect();
   WiFi.hostname(clientName);
-  WiFi.mode(WIFI_AP_STA);
+  WiFi.mode(WIFI_STA);
 
   int buttonCheck = digitalRead(PUSH_BUTTON);
   if (buttonCheck == LOW) {
@@ -137,6 +140,7 @@ void buttonPressed() {
 
 void checkButton() {
   if (buttonFlag == true) {
+    Serial.println("Press detected...");
     buttonVal = digitalRead(PUSH_BUTTON);
     // Test for button pressed and store the down time
     if (buttonVal == LOW && buttonLast == HIGH && (millis() - btnUpTime) > long(debounce))  {
@@ -144,13 +148,17 @@ void checkButton() {
     }
     // Test for button release and store the up time
     if (buttonVal == HIGH && buttonLast == LOW && (millis() - btnDnTime) > long(debounce))  {
-      if (ignoreUp == false) event1();
+      if (ignoreUp == false) {
+        event1();
+        Serial.println("Release detected...");
+      }
       else ignoreUp = false;
       btnUpTime = millis();
       buttonFlag = false;
     }
     // Test for button held down for longer than the hold time
     if (buttonVal == LOW && (millis() - btnDnTime) > long(holdTime))  {
+      Serial.println("Long Press detected...");
       event2();
       ignoreUp = true;
       btnDnTime = millis();
