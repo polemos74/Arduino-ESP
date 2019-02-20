@@ -31,6 +31,7 @@ void onWifiConnect(const WiFiEventStationModeGotIP& event) {
 
 void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
  blinkerTimer.attach(0.5, blinker);
+  mqttClient.disconnect();
   mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
   wifiReconnectTimer.once(2, connectToWifi);
 }
@@ -156,7 +157,7 @@ void buttonEvent1() {
 
 void buttonEvent2()  {
   blinkerTimer.attach(0.15, blinker);
-  delay(3000);
+  delay(1000);
   blinkerTimer.detach();
-  mqttClient.publish("living/lamp/aux/pushButton", 1, true, "switch");
+  mqttClient.publish("living/lamp/aux/pushButton", 1, true, "auto");
 }

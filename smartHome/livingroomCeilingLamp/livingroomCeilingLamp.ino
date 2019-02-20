@@ -32,6 +32,7 @@ void onWifiConnect(const WiFiEventStationModeGotIP& event) {
 
 void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
   blinkerTimer.attach(0.5, blinker);
+  mqttClient.disconnect();
   mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
   wifiReconnectTimer.once(2, connectToWifi);
 }
@@ -50,11 +51,11 @@ void onMqttUnsubscribe(uint16_t packetId) {
 
 void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties properties, size_t len, size_t index, size_t total) {
   if (String(topic) == "living/lamp/ceiling/command") {
-    if (payload[0] == '1')  {
+    if (payload[1] == 'n')  {
       digitalWrite(RELAY_PIN, HIGH);
       mqttClient.publish("living/lamp/ceiling/feedback", 1, true, "on");
       }
-    if (payload[0] == '0'){
+    if (payload[1] == 'f'){
       digitalWrite(RELAY_PIN, LOW);
       mqttClient.publish("living/lamp/ceiling/feedback", 1, true, "off");
       }
@@ -77,7 +78,7 @@ void setup() {
   mqttPrefix = "living/lamp/ceiling";
 
   WiFi.hostname(clientName);
-  WiFi.mode(WIFI_STA);
+  WiFi.mode(WIFI_AP_STA);
 
   int buttonCheck = digitalRead(PUSH_BUTTON);
   if(buttonCheck == LOW){
@@ -155,7 +156,7 @@ void buttonEvent1() {
 
 void buttonEvent2()  {
   blinkerTimer.attach(0.15, blinker);
-  delay(3000);
+  delay(1000);
   blinkerTimer.detach();
-  mqttClient.publish("living/lamp/ceiling/pushButton", 1, true, "auto");
+  mqttClient.publish("living/lamp/ceiling/pushButton", 1, true, "switch");
 }

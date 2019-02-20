@@ -33,7 +33,8 @@ void onWifiConnect(const WiFiEventStationModeGotIP& event) {
 }
 
 void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
- blinkerTimer.attach(0.5, blinker);
+  blinkerTimer.attach(0.5, blinker);
+  mqttClient.disconnect();
   mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
   wifiReconnectTimer.once(2, connectToWifi);
 }
@@ -41,6 +42,7 @@ void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
 void onMqttConnect(bool sessionPresent) {
   uint16_t packetIdSub1 = mqttClient.subscribe("mobile/humidifier/command", 1);
   uint16_t packetIdSub2 = mqttClient.subscribe("mobile/humidifier/reset", 0);
+  presenceReportTimer.attach(presenceReportInterval, presenceReportTimerCallback);
 }
 
 void onMqttSubscribe(uint16_t packetId, uint8_t qos) {
@@ -56,18 +58,18 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
     digitalWrite(RELAY_PIN,HIGH);
     digitalWrite(LED_BUILTIN,LED_OFF);
     digitalWrite(INDICATOR_LED_PIN,LED_ON);
-	 mqttClient.publish("mobile/humidifier/feedback", 1, true, "true");
+	 mqttClient.publish("mobile/humidifier/feedback", 1, true, "on");
     }
     if (payload[1] == 'f'){
     digitalWrite(RELAY_PIN,LOW);
     digitalWrite(LED_BUILTIN,LED_ON);
     digitalWrite(INDICATOR_LED_PIN,LED_OFF);
-	 mqttClient.publish("mobile/humidifier/feedback", 1, true, "false");
-     }
-     if (String(topic) == "mobile/humidifier/reset") {
-       ESP.restart();
+	 mqttClient.publish("mobile/humidifier/feedback", 1, true, "off");
      }
 	}
+  if (String(topic) == "mobile/humidifier/reset") {
+    ESP.restart();
+  }
 }
 
 void onMqttPublish(uint16_t packetId) {
@@ -169,8 +171,17 @@ void buttonEvent1() {
 }
 
 void buttonEvent2()  {
+  bool indicatorLedState = digitalRead(INDICATOR_LED_PIN);
+  bool statusLedState = digitalRead(LED_BUILTIN);
+  if (indicatorLedState == LED_ON && statusLedState == LED_OFF); digitalWrite(INDICATOR_LED_PIN,LED_OFF); bool indicateFlag = true;
   blinkerTimer.attach(0.15, blinker);
-  delay(3000);
+  delay(1000);
   blinkerTimer.detach();
+  if (indicateFlag == true) {
+    digitalWrite(INDICATOR_LED_PIN,LED_ON); digitalWrite(LED_BUILTIN,LED_OFF); indicateFlag = false;
+  }
+  else {
+    digitalWrite(LED_BUILTIN,LED_ON);
+  }
   mqttClient.publish("mobile/humidifier/pushButton", 1, true, "switch");
 }

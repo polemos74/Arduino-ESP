@@ -9,7 +9,7 @@
 
 volatile bool buttonFlag = false ;
 #define debounce 20 // ms debounce period to prevent flickering when pressing or releasing the button
-#define holdTime 2000 // ms hold period: how long to wait for press+hold event
+#define holdTime 1000 // ms hold period: how long to wait for press+hold event
 
 // Button variables
 bool buttonVal ; // value read from button
@@ -49,10 +49,12 @@ void connectToWifi() {
 
 void connectToMqtt() {
 //  display.print("C MQ");
+Serial.println("MQTT Connecting");
   mqttClient.connect();
 }
 
 void onMqttDisconnect(AsyncMqttClientDisconnectReason reason) {
+  Serial.println("MQTT Disconnected");
 //  display.print("MQ D");
   if (WiFi.isConnected()) {
     mqttReconnectTimer.once(2, connectToMqtt);

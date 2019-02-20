@@ -41,12 +41,14 @@ void onWifiConnect(const WiFiEventStationModeGotIP& event) {
 
 void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
   blinkerTimer.attach(0.5, blinker);
+  mqttClient.disconnect();
   mqttReconnectTimer.detach(); // ensure we don't reconnect to MQTT while reconnecting to Wi-Fi
   wifiReconnectTimer.once(2, connectToWifi);
 }
 
 void onMqttConnect(bool sessionPresent) {
   uint16_t packetIdSub = mqttClient.subscribe("common/timestamp", 1);
+  presenceReportTimer.attach(presenceReportInterval, presenceReportTimerCallback);
 }
 
 void onMqttSubscribe(uint16_t packetId, uint8_t qos) {
@@ -104,7 +106,7 @@ void setup() {
   mqttClient.onMessage(onMqttMessage);
   mqttClient.onPublish(onMqttPublish);
   mqttClient.setServer(MQTT_HOST, MQTT_PORT);
-  mqttClient.setKeepAlive(keepAliveTimeout).setCleanSession(false).setWill("balcony/sensor/lastwill", 2, true, "disconnected");
+  mqttClient.setKeepAlive(keepAliveTimeout).setCleanSession(false).setWill("clients/balcony/sensor/lastwill", 2, true, "disconnected");
 
   blinkerTimer.attach(0.5, blinker);
 
