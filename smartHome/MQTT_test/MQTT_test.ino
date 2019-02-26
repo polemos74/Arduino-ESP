@@ -86,6 +86,7 @@ void setup() {
   pinMode(PUSH_BUTTON, INPUT_PULLUP);
 
   mqttPrefix = "mqttTest";
+  
   WiFi.disconnect();
   WiFi.hostname(clientName);
   WiFi.mode(WIFI_STA);
