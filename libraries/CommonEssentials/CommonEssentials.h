@@ -83,7 +83,7 @@ void presenceReportTimerCallback() {
 
 void checkPresenceReportFlag() {
   if ( presenceReportTimerFlag == true ) {
-    String topic = "clients/"+mqttPrefix+"/state";
+    String topic = "clients/"+mqttPrefix+"/greeting";
     char topicChar[100];
     topic.toCharArray(topicChar,100);
     mqttClient.publish(topicChar, 1, true, "connected");
