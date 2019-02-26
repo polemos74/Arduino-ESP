@@ -78,6 +78,7 @@ void setup() {
 
   mqttPrefix = "living/lamp/aux";
 
+  WiFi.disconnect();
   WiFi.hostname(clientName);
   WiFi.mode(WIFI_STA);
 
