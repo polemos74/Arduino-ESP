@@ -158,7 +158,7 @@ void buttonEvent1() {
 
 void buttonEvent2()  {
   blinkerTimer.attach(0.15, blinker);
+  mqttClient.publish("living/lamp/aux/pushButton", 1, true, "auto");
   delay(1000);
   blinkerTimer.detach();
-  mqttClient.publish("living/lamp/aux/pushButton", 1, true, "auto");
 }
