@@ -79,7 +79,7 @@ void setup() {
 
   WiFi.disconnect();
   WiFi.hostname(clientName);
-  WiFi.mode(WIFI_AP_STA);
+  WiFi.mode(WIFI_STA);
 
   int buttonCheck = digitalRead(PUSH_BUTTON);
   if(buttonCheck == LOW){
@@ -157,7 +157,7 @@ void buttonEvent1() {
 
 void buttonEvent2()  {
   blinkerTimer.attach(0.15, blinker);
+  mqttClient.publish("living/lamp/ceiling/pushButton", 1, true, "switch");
   delay(1000);
   blinkerTimer.detach();
-  mqttClient.publish("living/lamp/ceiling/pushButton", 1, true, "switch");
 }
