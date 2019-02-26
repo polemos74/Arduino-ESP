@@ -86,7 +86,7 @@ void checkPresenceReportFlag() {
     String topic = "clients/"+mqttPrefix+"/state";
     char topicChar[100];
     topic.toCharArray(topicChar,100);
-    mqttClient.publish(topicChar, 1, true, "Online");
+    mqttClient.publish(topicChar, 1, true, "connected");
     presenceReportTimerFlag = false;
   }
 }
