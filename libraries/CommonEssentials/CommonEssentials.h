@@ -41,6 +41,7 @@ Ticker wifiReconnectTimer;
 
 bool clockSyncFlag = false;
 Ticker blinkerTimer;
+Ticker blinkerStopper;
 Ticker clockSyncTimer;
 
 void connectToWifi() {
