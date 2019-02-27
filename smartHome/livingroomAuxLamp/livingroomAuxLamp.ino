@@ -39,6 +39,7 @@ void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
 void onMqttConnect(bool sessionPresent) {
   uint16_t packetIdSub1 = mqttClient.subscribe("living/lamp/aux/command", 1);
   uint16_t packetIdSub2 = mqttClient.subscribe("living/lamp/aux/reset", 0);
+  mqttClient.publish("clients/living/lamp/aux/greeting", 1, true, "connected");
   presenceReportTimer.attach(presenceReportInterval, presenceReportTimerCallback);
 }
 
@@ -159,6 +160,9 @@ void buttonEvent1() {
 void buttonEvent2()  {
   blinkerTimer.attach(0.15, blinker);
   mqttClient.publish("living/lamp/aux/pushButton", 1, true, "auto");
-  delay(1000);
+  blinkerStopper.once(1,blinkerStopperCallback);
+}
+
+void blinkerStopperCallback() {
   blinkerTimer.detach();
 }
