@@ -51,6 +51,7 @@ void onMqttConnect(bool sessionPresent) {
   Serial.println("MQTT Connected");
   display.print("MQ C");
   uint16_t packetIdSub = mqttClient.subscribe("common/timestamp", 1);
+  mqttClient.publish("clients/mqttTest/greeting", 1, true, "connected");
   presenceReportTimer.attach(presenceReportInterval, presenceReportTimerCallback);
 }
 
@@ -86,7 +87,7 @@ void setup() {
   pinMode(PUSH_BUTTON, INPUT_PULLUP);
 
   mqttPrefix = "mqttTest";
-  
+
   WiFi.disconnect();
   WiFi.hostname(clientName);
   WiFi.mode(WIFI_STA);
@@ -175,13 +176,13 @@ void event1() {
 }
 
 void event2()  {
-  for (int a = 1 ; a < 4 ; a++) {
-    digitalWrite(LED_BUILTIN, LED_ON);
-    delay(100);
-    digitalWrite(LED_BUILTIN, LED_OFF);
-    delay(100);
-  }
+  blinkerTimer.attach(0.15, blinker);
+  blinkerStopper.once(1,blinkerStopperCallback);
 }
+
+void blinkerStopperCallback() {
+  blinkerTimer.detach();
+  }
 
 void displayTimerCallback() {
   displayFlag = true;
