@@ -17,6 +17,7 @@ bool buttonLast = HIGH; // buffered value of the button's previous state
 long btnDnTime; // time the button was pressed down
 long btnUpTime; // time the button was released
 boolean ignoreUp = false; // whether to ignore the button release because the click+hold was triggered
+bool eventFired = false;
 
 #define TIMEZONE_OFFSET 3    // GMT+3 for Turkey
 
@@ -110,6 +111,10 @@ void timeSystemInit() {
 void blinker() {
   int state = digitalRead(LED_BUILTIN);  // get the current state of GPIO1 pin
   digitalWrite(LED_BUILTIN, !state);     // set pin to the opposite state
+}
+
+void blinkerStopperCallback() {
+  blinkerTimer.detach();
 }
 
 void OTA_setup() {
