@@ -128,14 +128,15 @@ void checkButton()  {
     // Test for button release and store the up time
     if (buttonVal == HIGH && buttonLast == LOW && (millis() - btnDnTime) > long(debounce))  {
       if (ignoreUp == false) buttonEvent1();
-      else ignoreUp = false;
+      else ignoreUp = false; eventFired = false;
       btnUpTime = millis();
       //Serial.println("Up "+String(btnUpTime));
       buttonFlag = false;
     }
     // Test for button held down for longer than the hold time
-    if (buttonVal == LOW && (millis() - btnDnTime) > long(holdTime))  {
+    if (buttonVal == LOW && (millis() - btnDnTime) > long(holdTime) && eventFired == false)  {
       buttonEvent2();
+      eventFired = true;
       ignoreUp = true;
       btnDnTime = millis();
       //Serial.println("Down "+String(btnDnTime));
@@ -161,8 +162,3 @@ void buttonEvent2()  {
   blinkerStopper.once(1,blinkerStopperCallback);
   mqttClient.publish("living/lamp/ceiling/pushButton", 1, true, "switch");
 }
-
-void blinkerStopperCallback() {
-  blinkerTimer.detach();
-}
-
