@@ -225,14 +225,15 @@ void checkButton(){
     // Test for button release and store the up time
     if (buttonVal == HIGH && buttonLast == LOW && (millis() - btnDnTime) > long(debounce))  {
       if (ignoreUp == false) event1();
-      else ignoreUp = false;
+      else ignoreUp = false; eventFired = false;
       btnUpTime = millis();
       //Serial.println("Up "+String(btnUpTime));
       buttonFlag = false;
     }
     // Test for button held down for longer than the hold time
-    if (buttonVal == LOW && (millis() - btnDnTime) > long(holdTime))  {
+    if (buttonVal == LOW && (millis() - btnDnTime) > long(holdTime) && eventFired == false)  {
       event2();
+      eventFired = true;
       ignoreUp = true;
       btnDnTime = millis();
     //Serial.println("Down "+String(btnDnTime));
