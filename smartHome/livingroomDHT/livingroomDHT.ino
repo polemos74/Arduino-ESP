@@ -1,3 +1,4 @@
+
 // Living room DHT sensor with display and fairy lights client
 
 #include <TM1637Header.h>
@@ -50,6 +51,7 @@ void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
 void onMqttConnect(bool sessionPresent) {
   uint16_t packetIdSub1 = mqttClient.subscribe("living/lamp/fairy/command", 1);
   uint16_t packetIdSub2 = mqttClient.subscribe("common/timestamp", 1);
+  mqttClient.publish("clients/living/sensor/greeting", 1, true, "connected");
   presenceReportTimer.attach(presenceReportInterval, presenceReportTimerCallback);
 }
 
@@ -252,11 +254,8 @@ void event1() {
 }
 
 void event2()  {
+//  Reserved for future demands
   mqttClient.publish("living/lamp/fairy/pushButton", 1, true, "auto");
-  for (int a = 1 ; a < 7 ; a++) {
-    digitalWrite(SWITCH_PIN,!digitalRead(SWITCH_PIN));
-    delay(100);
-  }
 }
 
 void displayTimerCallback() {
