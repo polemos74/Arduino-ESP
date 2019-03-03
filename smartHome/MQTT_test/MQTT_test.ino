@@ -50,7 +50,8 @@ void onWifiDisconnect(const WiFiEventStationModeDisconnected& event) {
 void onMqttConnect(bool sessionPresent) {
   Serial.println("MQTT Connected");
   display.print("MQ C");
-  uint16_t packetIdSub = mqttClient.subscribe("common/timestamp", 1);
+  uint16_t packetIdSub1 = mqttClient.subscribe("common/timestamp", 1);
+  uint16_t packetIdSub = mqttClient.subscribe("mqttTest/command", 1);
   mqttClient.publish("clients/mqttTest/greeting", 1, true, "connected");
   presenceReportTimer.attach(presenceReportInterval, presenceReportTimerCallback);
 }
@@ -70,6 +71,16 @@ void onMqttMessage(char* topic, char* payload, AsyncMqttClientMessageProperties 
     strncpy (timestampBuffer, payload, 10);
     timestamp = atoi(timestampBuffer);
     timestampReceived = true;
+  }
+  if (String(topic) == "mqttTest/command") {
+    if (payload[1] == 'n')  {
+    digitalWrite(LED_BUILTIN,LED_ON);
+   mqttClient.publish("mqttTest/feedback", 1, true, "on");
+    }
+    if (payload[1] == 'f'){
+    digitalWrite(LED_BUILTIN,LED_OFF);
+   mqttClient.publish("mqttTest/feedback", 1, true, "off");
+     }
   }
 }
 
@@ -118,10 +129,10 @@ void setup() {
 
   connectToWifi();
 
-  while (!timestampReceived) {
-    yield();     //Serial.println("no packet yet");
-  }
-  timeSystemInit();
+//  while (!timestampReceived) {
+//    yield();     //Serial.println("no packet yet");
+//  }
+//  timeSystemInit();
 
   displayTimer.attach(2, displayTimerCallback);
   //  DHTReadTimer.attach(10,DHTReadTimerCallback);
@@ -154,14 +165,15 @@ void checkButton() {
         event1();
         Serial.println("Release detected...");
       }
-      else ignoreUp = false;
+      else ignoreUp = false; eventFired = false;
       btnUpTime = millis();
       buttonFlag = false;
     }
     // Test for button held down for longer than the hold time
-    if (buttonVal == LOW && (millis() - btnDnTime) > long(holdTime))  {
+    if (buttonVal == LOW && (millis() - btnDnTime) > long(holdTime) && eventFired == false) {
       Serial.println("Long Press detected...");
       event2();
+		  eventFired = true;
       ignoreUp = true;
       btnDnTime = millis();
     }
@@ -179,10 +191,6 @@ void event2()  {
   blinkerTimer.attach(0.15, blinker);
   blinkerStopper.once(1,blinkerStopperCallback);
 }
-
-void blinkerStopperCallback() {
-  blinkerTimer.detach();
-  }
 
 void displayTimerCallback() {
   displayFlag = true;
