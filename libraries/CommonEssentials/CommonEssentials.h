@@ -46,7 +46,9 @@ Ticker blinkerStopper;
 Ticker clockSyncTimer;
 
 void connectToWifi() {
-  WiFi.begin(WLAN_SSID, WLAN_PASS);
+	WiFi.disconnect();
+	delay(1000);
+	WiFi.begin(WLAN_SSID, WLAN_PASS);
 }
 
 void connectToMqtt() {
