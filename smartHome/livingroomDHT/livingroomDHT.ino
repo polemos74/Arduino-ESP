@@ -99,7 +99,6 @@ void setup() {
 
   mqttPrefix = "living/sensor";
 
-  WiFi.disconnect();
   WiFi.hostname(clientName);
   WiFi.mode(WIFI_STA);
 

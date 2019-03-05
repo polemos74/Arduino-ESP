@@ -88,7 +88,6 @@ void setup() {
 
   mqttPrefix = "mobile/humidifier";
 
-  WiFi.disconnect();
   WiFi.hostname(clientName);
   WiFi.mode(WIFI_STA);
 

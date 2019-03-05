@@ -99,7 +99,6 @@ void setup() {
 
   mqttPrefix = "mqttTest";
 
-  WiFi.disconnect();
   WiFi.hostname(clientName);
   WiFi.mode(WIFI_STA);
 
@@ -129,10 +128,10 @@ void setup() {
 
   connectToWifi();
 
-//  while (!timestampReceived) {
-//    yield();     //Serial.println("no packet yet");
-//  }
-//  timeSystemInit();
+  while (!timestampReceived) {
+    yield();     //Serial.println("no packet yet");
+  }
+  timeSystemInit();
 
   displayTimer.attach(2, displayTimerCallback);
   //  DHTReadTimer.attach(10,DHTReadTimerCallback);

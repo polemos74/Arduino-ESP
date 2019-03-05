@@ -85,7 +85,6 @@ void setup() {
 
   mqttPrefix = "son/sensor";
 
-  WiFi.disconnect();
   WiFi.hostname(clientName);
   WiFi.mode(WIFI_STA);
 
